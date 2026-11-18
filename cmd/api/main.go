@@ -24,7 +24,14 @@ func main() {
 	pool.Start()
 
 	// 2. Khởi tạo Repo, Service, Handler
-	repo := repository.NewMemoryWalletRepository()
+	// repo := repository.NewMemoryWalletRepository()
+
+	repo, err := repository.NewSqliteWalletRepository("wallets.db")
+	if err != nil {
+		slog.Error("failed to init sqlite repo", "error", err)
+		os.Exit(1)
+	}
+
 	svc := service.NewWalletService(repo)
 	h := handler.NewWalletHandler(svc)
 
