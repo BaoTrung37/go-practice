@@ -73,3 +73,7 @@ func (s *WalletService) Withdraw(id string, amount int64) (*model.Wallet, error)
 	}
 	return w, nil
 }
+
+func (s *WalletService) Transfer(fromID string, toID string, amount int64) error {
+	return s.repo.Transfer(fromID, toID, amount)
+}

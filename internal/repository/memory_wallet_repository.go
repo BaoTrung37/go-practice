@@ -46,7 +46,7 @@ func (r *MemoryWalletRepository) Transfer(fromID string, toID string, amount int
 	}
 
 	if fromW.Balance < amount {
-		return model.ErrInvalidAmount
+		return model.ErrInsufficientBalance
 	}
 
 	toW, ok := r.wallets[toID]

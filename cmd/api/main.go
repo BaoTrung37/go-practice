@@ -33,7 +33,7 @@ func main() {
 	}
 
 	svc := service.NewWalletService(repo)
-	h := handler.NewWalletHandler(svc)
+	h := handler.NewWalletHandler(svc, pool)
 
 	// 3. Đăng ký routes và bọc Middleware
 	mux := http.NewServeMux()
