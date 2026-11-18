@@ -75,4 +75,56 @@ func (r *SQLiteWalletRepository) FindByID(id string) (*model.Wallet, error) {
 	return &w, nil
 }
 
+func (r *SQLiteWalletRepository) Transfer(fromID string, toID string, amount int64) error {
+	if amount <= 0 {
+		return model.ErrInvalidAmount
+	}
+
+	// 1. Mo transaction
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() // Dam bao rollback neu co bat ki dong nao ben duoi bi loi
+
+	// 2. Kiem tra vi gui
+
+	var fromBalance int64
+	err = tx.QueryRow("select balance from wallets where id = ?", fromID).Scan(&fromBalance)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return model.ErrWalletNotFound
+		}
+		return err
+	}
+	if fromBalance < amount {
+		return model.ErrInsufficientBalance
+	}
+
+	// 3. Kiem tra vi dich
+
+	var toBalance int64
+	err = tx.QueryRow("select balance from wallets where id = ?", toID).Scan(&toBalance)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return model.ErrWalletNotFound
+		}
+		return err
+	}
+
+	// 4. Tru tien
+	_, err = tx.Exec("update wallets set balance = balance - ? where id = ?", amount, fromID)
+	if err != nil {
+		return err
+	}
+
+	// 5. Cong tien
+
+	_, err = tx.Exec("update wallets set balance = balance + ? where id = ?", amount, toID)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 var _ WalletRepository = (*SQLiteWalletRepository)(nil)
