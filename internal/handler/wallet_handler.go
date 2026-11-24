@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
+	"test/internal/middleware"
 	"test/internal/model"
 	"test/internal/service"
 	"test/internal/worker"
@@ -20,10 +22,13 @@ func NewWalletHandler(svc *service.WalletService, pool *worker.WorkerPool) *Wall
 }
 
 func (h *WalletHandler) RegisterRoutes(mux *http.ServeMux) {
+	// Public Routes
 	mux.HandleFunc("POST /wallets", h.CreateWallet)
 	mux.HandleFunc("GET /wallets/{id}", h.GetWallet)
-	mux.HandleFunc("POST /wallets/{id}/deposit", h.Deposit)
-	mux.HandleFunc("POST /wallets/transfer", h.Transfer)
+
+	// Protected Routes
+	mux.Handle("POST /wallets/{id}/deposit", middleware.Auth(http.HandlerFunc(h.Deposit)))
+	mux.Handle("POST /wallets/transfer", middleware.Auth(http.HandlerFunc(h.Transfer)))
 }
 
 func (h *WalletHandler) CreateWallet(w http.ResponseWriter, r *http.Request) {
@@ -99,6 +104,12 @@ func (h *WalletHandler) Deposit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WalletHandler) Transfer(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserID(r.Context())
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	var req struct {
 		FromID string `json:"from_id"`
 		ToID   string `json:"to_id"`
@@ -107,6 +118,11 @@ func (h *WalletHandler) Transfer(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if !strings.EqualFold(userID, req.FromID) {
+		http.Error(w, "forbidden: you can only transfer from your own wallet", http.StatusForbidden)
 		return
 	}
 
